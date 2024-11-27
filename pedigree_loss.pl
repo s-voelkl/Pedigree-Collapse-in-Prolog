@@ -12,7 +12,7 @@
 :- use_module(library(tabling)).
 % Library tabling for a better alternative to memoization, see calculation of the coi below.
 
-% ----- IDEEN -----
+% ----- IDEEN ----- [REDO]
 % Inzest in Familien herausfinden. 
 % Dozent schlug "Ahnenverlust" als Problem vor. de.wikipedia.org/wiki/Ahnenverlust
 % z.B. Prozentualer Ahnenverlust
@@ -25,59 +25,50 @@
 % 	F[Ai]: Inzuchtkoeffizient des gemeinsamen Vorfahren
 
 
-% ARBEITSGRUNDLAGE
-% https://en.wikipedia.org/wiki/Coefficient_of_inbreeding
-% https://de.wikipedia.org/wiki/Inzuchtkoeffizient#cite_note-SAMW_2005-1
-% https://www.jstor.org/stable/2456273?seq=8
-% PDF datei tierzucht
-
-%trace.
-
 % ----- FACTS -----
-% Family Tree from this graphic: i.pinimg.com/originals/a6/9e/a7/a69ea7c6c262aeaa4058204c33fc533c.jpg
-
-% GENDER
-males([
-      philip, charles, william, harry, george, 
-      louis, archie_harrison, andrew, mark_p, 
-      timothy_l, edward, peter_p, mike, james]).
-females([elisabeth, diana, camilla_pb, kate_m, 
-        meghan_m, charlotte,  sarah_f, eugenie, 
-        beatrice, anne, autumn_p, zara_t, sophie_rj, 
-        louise_w]).
+% GENDER REDO!
+males([]).
+females([]).
 diverses([]).
 
 % PARENTS
 % structure: parents([List of all parents], [List of children of these parents]).
+% Pedigree chart about the House of Habsburg, see SOURCES [5,6] below.
+
 
 % 1st generation
-parents([philip, elisabeth], [charles, andrew, edward, anne]).
+parents([philip_I_kingOfCastile, joanna_queenOfCastileAndAragon], [charles_V_holyRomanEmperor, ferdinand_I_holyRomanEmperor, isabella_ofAustria]).
 % 2nd generation
-parents([charles, diana], [william, harry]).
-parents([charles, camilla_pb], []).
-parents([andrew, sarah_f], [eugenie, beatrice]).
-parents([mark_p, anne], [peter_p, zara_t]).
-parents([anne, timothy_l], []).
-parents([edward, sophie_rj], [louise_w, james]).
+parents([isabella_ofPortugal, charles_V_holyRomanEmperor], [philip_II_kingOfSpain, maria_ofAustria]).
+parents([ferdinand_I_holyRomanEmperor, anna_ofBohemiaAndHungary], [maximilian_II_holyRomanEmperor, charles_II_archdukeOfAustria, anna_ofAustria1528]).
+parents([isabella_ofAustria, christian_II_kingOfDenmark], [christina_ofDenmark]).
 % 3rd generation
-parents([william, kate_m], [george, charlotte, louis]).
-parents([harry, maghan_m], [archie_harrison]).
-parents([zara_t, mike_t], []).
-parents([peter_p, autumn_p], []).
-% REDO: incest testing fact:
-%parents([george, zara_t], [incest_child]).
+parents([maria_ofAustria, maximilian_II_holyRomanEmperor], [anna_ofAustria1549]).
+parents([anna_ofAustria1528, albert_V_dukeOfBavaria], [maria_anna_ofBavaria1551, william_V_dukeOfBavaria]).
+parents([christina_ofDenmark, francis_I_dukeOfLorraine], [renata_ofLorraine]).
+% 4th generation
+parents([philip_II_kingOfSpain, anna_ofAustria1549], [philip_III_kingOfSpain]).
+parents([charles_II_archdukeOfAustria, maria_anna_ofBavaria1551], [margaret_ofAustria, ferdinand_II_holyRomanEmperor]).
+parents([william_V_dukeOfBavaria, renata_ofLorraine], [maria_anna_ofBavaria1574]).       
+% 5th generation
+parents([philip_III_kingOfSpain, margaret_ofAustria], [philip_IV_kingOfSpain, maria_anna_ofSpain]).       
+parents([ferdinand_II_holyRomanEmperor, maria_anna_ofBavaria1574], [ferdinand_III_holyRomanEmperor]).       
+% 6th generation
+parents([maria_anna_ofSpain, ferdinand_III_holyRomanEmperor], [mariana_ofAustria]).       
+% 7th generation
+parents([philip_IV_kingOfSpain, mariana_ofAustria], [charles_II_kingOfSpain]).       
+
 
 % REDO: TESTING
-parents([grosseltern1, grosseltern2], [eltern1, eltern2]).
-parents([eltern1, anderer1], [kind1, kind2]).
-parents([kind1, kind2], [bruderSchwester]). % 25%
-parents([eltern1, anderer2], [kind3]).
-parents([kind1, kind3], [cousins]). % 6.25%
-parents([grosseltern1, kind1], [grosselternEnkelkind]). % 12.50%
+%parents([grosseltern1, grosseltern2], [eltern1, eltern2]).
+%parents([eltern1, anderer1], [kind1, kind2]).
+%parents([kind1, kind2], [bruderSchwester]). % 25%
+%parents([eltern1, anderer2], [kind3]).
+%parents([kind1, kind3], [cousins]). % 6.25%
+%parents([grosseltern1, kind1], [grosselternEnkelkind]). % 12.50%
 
-% TESTING COWS WITH EXAMPLE: Willam, Alfons., Simianer, Henner. Tierzucht. Deutschland: utb GmbH, 2017 S.151:
-% TEST:
-% 1. Gen (Auswahl)
+% TESTS with cows, from SOURCES [3] below.
+% 1. Gen 
 parents([hassan, lina], [loner]).
 parents([streif, gerlind], [gerda]).
 parents([streif, helga], [streitl]).
@@ -94,7 +85,7 @@ parents([happ, lilli], [loti]).
 parents([lock, loti], [leo]).
 
 
-% animalrelationships REDO
+% Testing animalrelationships REDO
 parents([animalC, animalD], [animalA]).
 parents([animalC, animalE], [animalB]).
 parents([animalA, animalB], [animalP]). % 0.125
@@ -212,11 +203,9 @@ incest_child(Person) :-
 % coefficient of imbreeding (COI) -> number measuring how imbred an individual is. Low is genetically better.
 % --> Value of the COI between 0 (genetically good) and 1 (clone to itself, only logarithmically possible)
 % 
-% Base case: If a person does not have ancestors, the COI is 0, see here:
-%   Wright, Sewall (1922), "Coefficients of Inbreeding and Relationship", The American Naturalist, vol. 56, page 333
-%   ( journals.uchicago.edu/doi/10.1086/279872 )
-% Other sources claim to create a virtual Person that takes the average of the COI of the same generation, see NOTABLE SOURCES [1] below.
-% Also it is claimed that the base risk is 3% for genetic similarity, see NOTABLE SOURCES [2] below.
+% Base case: If a person does not have ancestors, the COI is 0, see SOURCES [4] below.
+% Other sources claim to create a virtual Person that takes the average of the COI of the same generation, see SOURCES [1] below.
+% Also it is claimed that the base risk is 3% for genetic similarity, see SOURCES [2] below.
 
 % USEFUL PREDICATES: 
 % find_common_ancestor(CommonAncestor, Parent1, Parent2): 
@@ -237,15 +226,20 @@ incest_child(Person) :-
 :- table coi/2.
     
 % CALCULATING THE COI (Coefficient Of Imbreeding)
-% coi is 0 if the person does not have any parents, as there can be no pedigree collapse from that.
+% TEST: coi(COI, leo) -> 0.015625 (correct, see SOURCES [3], page 150)
+% TEST: coi(COI, leo) -> 0.015625 (correct, see SOURCES [3], page 151)
+
+% number of parents == 0
 coi(COI, Person) :-
-    % has no parents:
     not(any_parent_existing(Person)),
+    COI is 0,
+    write('-------------- COI is 0 as num parents == 0'), nl.
+
+% number of parents == 1 -> simplified [REDO]
+coi(COI, Person) :-
+    any_parent_existing(Person),
+    not(both_parents_existing(Person)),
     COI is 0.
-
-% number of parents == 1
-%coefficient(Coefficient, Person) :- 
-
 
 % number of parents == 2
 coi(COI, Person) :- 
@@ -264,7 +258,7 @@ coi(COI, Person) :-
     % COI is the sum of all CommonAncestorCOIs
     %list_sum(COI, CommonAncestorCOIs),
     list_sum(COI, CommonAncestorCOIs),
-    write('coi/COI: '), write(COI), nl.
+    write('coi/COI: '), write(COI), nl, nl.
     
 
 % user-friendly predicate for accessing the COIs of CommonAncestors from a person
@@ -300,9 +294,12 @@ calc_single_coi(Acc, CommonAncestorCOIs, [CurrentCommonAncestor | RemainingCommo
 % find all common ancestors with find_common_ancestor that a person's parents have.
 % Predicate tries to eliminate duplicates with "member" and "Visited"
 % TEST: common_ancestors(CommonAncestors, leo) -> CommonAncestors = [harko, hassan, streif]
-common_ancestors(UniqueAncestors, Person) :-
+
+common_ancestors(CommonAncestors, Person) :-
     parents_of_child(Parent1, Parent2, Person),
-    setof(UniqueAncestor, common_ancestor(UniqueAncestor, Parent1, Parent2), UniqueAncestors).
+    % using findall to return an empty list if no CommonAncestors could have been found. -> []
+    % also returns a set of all found CommonAncestors if one was found multiple times (no duplicates).
+    findall(CommonAncestor, common_ancestor(CommonAncestor, Parent1, Parent2), CommonAncestors).
 
 % Get the count of all common ancestors of a person.
 % TEST: common_ancestor_count(AncestorCount, leo) -> AncestorCount = 3
@@ -355,6 +352,8 @@ list_length(Count, [_|Tail]) :-
 
 
 % DEFINE ADDITIONAL RELATIONSHIPS
+% TEST: parents_of_child(Parent1, Parent2, charles_V_holyRomanEmperor) -> 
+% 		Parent1 = joanna_queenOfCastileAndAragon, Parent2 = philip_I_kingOfCastile
 parents_of_child(Parent1, Parent2, Child) :-
     % Problem: returns 2x true.
     % Solution: Get the parents as a set and place them in a sorted order, 
@@ -370,25 +369,37 @@ parents_of_child(Parent1, Parent2, Child) :-
     Parent2 = FirstParent2,
     ParentPairs = [(FirstParent1, FirstParent2) | _].
 
+
+% TEST: both_parents_existing(anna_ofAustria1549) -> true
+% TEST: both_parents_existing(isabella_ofPortugal) -> false
 both_parents_existing(Child) :-
     % can be any parents here.
 	parents_of_child(_, _, Child).
 
+% TEST: any_parent_existing(anna_ofAustria1549) -> true
+% TEST: <a person with only one parent> -> true
 any_parent_existing(Child) :-
-	% Placeholder, as there can be any parent.
-	parent(_, Child).
+	% Placeholder, as there can be any parent. "!" cut for stopping after the first parent, not returning 2 times true.
+	parent(_, Child), !.
+    
 
     
     
 :- debug. % redo!
 
-% NOTABLE SOURCES
+% SOURCES
 % [1] risks of imbreeding, threshold for health and reproduction problems, understanding inbreeding of endangered species,
 %	data of generations to include for determining the COI, override missing objects with the averages COI of a generation:
 %  	instituteofcaninebiology.org/blog/coi-faqs-understanding-the-coefficient-of-inbreeding
 % [2] base risk in the population for genetic risks is 3%:
 %	Hansjakob Müller u. a.: Medizinische Genetik: Familienplanung und Genetik. In: Schweizer Medizin Forum. Basel, 2005
 %	web.archive.org/web/20180329120812/https://medicalforum.ch/de/resource/jf/journal/file/view/article/smf/de/smf.2005.05576/2005-24-398.pdf/#expand
+% [3] Tierzucht von Alfons William: https://www.utb.de/doi/book/10.36198/9783838548050
+% [4] Wright, Sewall (1922), "Coefficients of Inbreeding and Relationship", The American Naturalist, vol. 56, page 333
+% 	(journals.uchicago.edu/doi/10.1086/279872)
+% [5] House of Habsburg: en.wikipedia.org/wiki/Template:Ancestors_of_Charles_II_of_Spain
+% [6] House of Habsburg: de.wikipedia.org/wiki/Ahnenverlust#/media/Datei:Carlos_segundo80.png 
+%	as there are many different pedigree charts of the House of Habsburg, the most accessible is being taken here (from wikipedia).
 
 
 /** <examples>
