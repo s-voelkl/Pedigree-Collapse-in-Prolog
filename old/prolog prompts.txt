@@ -1,0 +1,22 @@
+Ich arbeite in Prolog an dem Inzuchtkoeffizienten nach Wright.<br><br>Folgende Formel stelle ich nach:<br>Fp = Summe von i = 0 bis m (0.5 ** (n1+n2+1
+) * (1+FVi ) )
+
+wobei:
+Fp = Inzuchtkoeffizient des Probanden (Tieres),
+m = Anzahl gemeinsamer Vorfahren,
+n1 = Anzahl Generationen zwischen dem Proband (Tier) und dem 
+gemeinsamen väterlichen Vorfahren,
+n2 = Anzahl Generationen zwischen dem Proband (Tier) und dem 
+gemeinsamen mütterlichen Vorfahren,
+Fvi = Inzuchtkoeffizient des i-ten gemeinsamen Vorfahren.<br>** = Exponent <br><br><br>Folgende Lösung habe ich bereits, bitte erweitere sie bei Coefficient is [...].<br>find_common_ancestor gibt diskrete CommonAncestors zurück.<br>--------------------<br><br>coefficient(Coefficient, Person) :- 
+    % Summe aller Coefs der CommonAncestors der Eltern der Person. --> Summenfunktion, appende die Coefs an die Liste	
+   	% dabei gilt pro Coef eines CommonAncestors: 0,5^(n_gens1 + n_gens2 + 1) * (...)
+	
+    % get a CommonAncestor of 2 parents that hasnt been taken before.
+    parents_of_child(Parent1, Parent2, Person),
+    find_common_ancestor(Parent1, Parent2, [], CommonAncestor),
+    
+    % get the generation differences between the parents and the common ancestor
+    generation_difference(GenDiffParent1, Parent1, CommonAncestor),
+    generation_difference(GenDiffParent2, Parent2, CommonAncestor),<br><br>    % calculate Coefficient
+    Coefficient is 0.5**(GenDiffParent1 + GenDiffParent2 +1).
