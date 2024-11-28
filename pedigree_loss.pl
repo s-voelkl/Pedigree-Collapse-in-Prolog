@@ -1,41 +1,68 @@
-% Student exercise profile
-:- set_prolog_flag(occurs_check, error).        % disallow cyclic terms
-%:- set_prolog_stack(global, limit(8 000 000)).  % limit term space (8Mb)
-%:- set_prolog_stack(local,  limit(2 000 000)).  % limit environment space
+% Pedigree Collapse Prolog Program. 
+:- set_prolog_flag(occurs_check, error). % disallow cyclic terms
+
+% ----- STRUCTURE -----
+% define families with genders and relationships
+% define easy and intermediate relationship predicates
+% specify on pedigree collapse determination using the Coefficient of Imbreeding (Wright, 1922) 
+%   (see SOURCES [4]) by using helper predicates and bundling them into an advanced logic.
+% define helper functions for the COI calculation
+% Sources
+
+% ----- GOAL OF THIS PROGRAM -----
+% This program sets itself the goal to find out the degree of pedigree collapse (incest) in families.
+% The coefficient of imbreeding (COI) is being measured with the formula by Wright, from 1922 (see SOURCES [4]).
+% Note: the pedigree collapse coefficient is normally not being used in science, due to misleading approximations.
+% For scientific purposes, the COI is normally being used.
+% The formula works as following:
+
+% ----- FORMULA -----
+% FP = SUM[ 0.5 ^ (N1 + N2 + 1) * (1 + FCA)]
+% FP: Coefficient of Imbreeding of a Person P.
+% SUM: Sum of all results for each common ancestor of P.
+% N1: Number of generations between P and a found common ancestor of P's father (Parent1).
+% N2: same like N1, for the mother (Parent2).
+% FCA: Coefficient of Imbreeding for the found common ancetor himself.
+
+% ----- EXAMPLE EQUATION -----
+% Example: see the simple animal relationship example (see SOURCES [3], page 150):
+% animal_P has the same grandfather animal_c.
+% The equation results as following:
+% FP = 0.5 ^ (1 + 1 + 1) * (1 + 0) = 0.125
+% N1: is 1, as one generation-difference of grandfather and father.
+% N1: is 1, as one generation-difference of grandfather and mother.
+% FCA: is 0, as no information about the ancestors of the grandfather was given.
+% Result: 0.125 --> 12.5% of the genes are duplicates
 
 % ----- LIBRARIES -----
 :- use_module(library(clpfd)).
-%  library clpfd for #= (replacing "is" -> more general), see here: swi-prolog.org/pldoc/man?predicate=%23%3D/2
-%  "is" is used for numeric equality (compare to "=" that only checks the structure), see here:
-%	stackoverflow.com/questions/16027449/what-is-the-difference-between-is-and
+%  library clpfd for #= (replacing "is" -> more general), see SOURCES [8]
+%  "is" is used for numeric equality (compare to "=" that only checks the structure), see SOURCES [9]
 
 :- use_module(library(tabling)).
 % Library tabling for a better alternative to memoization, see calculation of the coi below.
 
-% ----- IDEEN ----- [REDO]
-% Inzest in Familien herausfinden. 
-% Dozent schlug "Ahnenverlust" als Problem vor. de.wikipedia.org/wiki/Ahnenverlust
-% z.B. Prozentualer Ahnenverlust
-% Ahnenverlustkoeffizient: AVK = TatsöächlicheAhnen / InsgesamtMöglicheAhnen, in %
-% 	hoher AVK -> wenig Ahnenverlust -> wenig Inzucht. Hoch ist gut.
-% 	Problem: Wird in Wissenschaft nicht verwendet!
-% Inzuchtkoeffizient: de.wikipedia.org/wiki/Inzuchtkoeffizient
-% 	n[1]: Anzahl der Generationen vom Vater zum gemeinsamen Vorfahren
-%	n[2]: Anzahl der Generationen von der Mutter zum gemeinsamen Vorfahren
-% 	F[Ai]: Inzuchtkoeffizient des gemeinsamen Vorfahren
-
 
 % ----- FACTS -----
-% GENDER REDO!
-males([]).
-females([]).
-diverses([]).
+% Pedigree chart about the House of Habsburg, see SOURCES [5,6] below.
+% GENDERS
+males([
+    philip_I_kingOfCastile, charles_V_holyRomanEmperor, ferdinand_I_holyRomanEmperor, 
+    philip_II_kingOfSpain, maximilian_II_holyRomanEmperor, william_V_dukeOfBavaria, philip_III_kingOfSpain, 
+    ferdinand_II_holyRomanEmperor, philip_IV_kingOfSpain, ferdinand_III_holyRomanEmperor, 
+    charles_II_kingOfSpain, christian_II_kingOfDenmark, albert_V_dukeOfBavaria, francis_I_dukeOfLorraine
+]).
+females([
+    joanna_queenOfCastileAndAragon, isabella_ofAustria, maria_ofAustria, isabella_ofPortugal, 
+    charles_II_archdukeOfAustria, anna_ofAustria1528, christina_ofDenmark, anna_ofAustria1549, 
+    maria_anna_ofBavaria1551, renata_ofLorraine, margaret_ofAustria, maria_anna_ofBavaria1574, 
+    maria_anna_ofSpain, mariana_ofAustria, anna_ofBohemiaAndHungary
+]).
+diverses([ ]).
+
 
 % PARENTS
 % structure: parents([List of all parents], [List of children of these parents]).
-% Pedigree chart about the House of Habsburg, see SOURCES [5,6] below.
-
-
 % 1st generation
 parents([philip_I_kingOfCastile, joanna_queenOfCastileAndAragon], [charles_V_holyRomanEmperor, ferdinand_I_holyRomanEmperor, isabella_ofAustria]).
 % 2nd generation
@@ -59,43 +86,35 @@ parents([maria_anna_ofSpain, ferdinand_III_holyRomanEmperor], [mariana_ofAustria
 parents([philip_IV_kingOfSpain, mariana_ofAustria], [charles_II_kingOfSpain]).       
 
 
-% REDO: TESTING
-%parents([grosseltern1, grosseltern2], [eltern1, eltern2]).
-%parents([eltern1, anderer1], [kind1, kind2]).
-%parents([kind1, kind2], [bruderSchwester]). % 25%
-%parents([eltern1, anderer2], [kind3]).
-%parents([kind1, kind3], [cousins]). % 6.25%
-%parents([grosseltern1, kind1], [grosselternEnkelkind]). % 12.50%
-
 % TESTS with cows, from SOURCES [3] below.
 % 1. Gen 
-parents([hassan, lina], [loner]).
-parents([streif, gerlind], [gerda]).
-parents([streif, helga], [streitl]).
-parents([hassan, luxi], [liesa]).
+parents([cow_hassan, cow_lina], [cow_loner]).
+parents([cow_streif, cow_gerlind], [cow_gerda]).
+parents([cow_streif, cow_helga], [cow_streitl]).
+parents([cow_hassan, cow_luxi], [cow_liesa]).
 % 2. Gen
-parents([loner, gerda], [lotus]).
-parents([harko, senta], [stutzi]).
-parents([harko, lerche], [happ]).
-parents([streitl, liesa], [lilli]).
+parents([cow_loner, cow_gerda], [cow_lotus]).
+parents([cow_harko, cow_senta], [cow_stutzi]).
+parents([cow_harko, cow_lerche], [cow_happ]).
+parents([cow_streitl, cow_liesa], [cow_lilli]).
 % 3. Gen
-parents([lotus, stutzi], [lock]).
-parents([happ, lilli], [loti]).
+parents([cow_lotus, cow_stutzi], [cow_lock]).
+parents([cow_happ, cow_lilli], [cow_loti]).
 % 4. Gen
-parents([lock, loti], [leo]).
+parents([cow_lock, cow_loti], [cow_leo]).
 
 
-% Testing animalrelationships REDO
-parents([animalC, animalD], [animalA]).
-parents([animalC, animalE], [animalB]).
-parents([animalA, animalB], [animalP]). % 0.125
+% Testing simple animal relationship (Example)
+parents([animal_C, animal_D], [animal_A]).
+parents([animal_C, animal_E], [animal_B]).
+parents([animal_A, animal_B], [animal_P]). % animal_P has 0.125 (SOURCES [3], page 150)
 
 
 % ----- RULES -----
 % Derive atomar facts from the given fact lists by using rules
-% TEST: female(diana) -> true
-% TEST: parent(elisabeth, edward) -> true
-% TEST: family_member(X) -> X = philip, charles, william, harry, ...
+% TEST: female(maria_anna_ofSpain) -> true
+% TEST: parent(philip_I_kingOfCastile, charles_V_holyRomanEmperor) -> true
+% TEST: family_member(X) -> X = philip_I_kingOfCastile, charles_V_holyRomanEmperor, ...
 male(Person) :- males(List), member(Person, List).
 female(Person) :- females(List), member(Person, List).
 diverse(Person) :- diverses(List), member(Person, List).
@@ -112,16 +131,15 @@ family_member(Person) :-
     member(Person, Family).
 
 % ----- DEFINE DIRECT RELATIONSHIPS -----
-% TEST: father(philip, charles) -> true
-% TEST: mother(X, charles) -> X=elisabeth
+% TEST: father(philip_I_kingOfCastile, charles_V_holyRomanEmperor) -> true
+% TEST: mother(X, charles_V_holyRomanEmperor) -> X=joanna_queenOfCastileAndAragon
 mother(Mother, Child) :- parent(Mother, Child), female(Mother).
 father(Father, Child) :- parent(Father, Child), male(Father).
 child(Child, Parent) :- parent(Parent, Child).
 
 % ----- DEFINE INDIRECT RELATIONSHIPS ----- 
-% TEST: grandfather(X, Y) -> X = philip, Y = william, ...
-% TEST: uncle(X, george) -> X = harry
-% TEST: sibling(charles, X) -> X = andrew, anne, edward
+% TEST: grandfather(X, Y) -> X = philip_I_kingOfCastile, Y = philip_II_kingOfSpain, ...
+% TEST: sibling(philip_II_kingOfSpain, X) -> X = maria_ofAustria
 grandfather(Grandfather, Grandchild) :- 
     parent(Grandfather, Parent), 
     parent(Parent, Grandchild), 
@@ -131,21 +149,17 @@ grandmother(Grandmother, Grandchild) :-
     parent(Parent, Grandchild), 
     female(Grandmother).
 
-% for an setof-explanation, see: alsprolog.com/docs/ref/setof.html
+% for an setof-explanation, see SOURCES [10]
 sibling(Sibling, Person) :- 
     % get unique entries of the returning siblings by creating a set
-    % ^ for not generating seperate lists, see here: 
-    % cs.union.edu/~striegnk/learn-prolog-now/html/node98.html
+    % "^" for not generating seperate lists, see SOURCES [11]
     setof(
-        % template:
         Sibling, 
-        % goal (without seperate lists):
         Parent^(
           parent(Parent, Sibling), 
           parent(Parent, Person), 
-          Sibling \== Person %inequality
+          Sibling \== Person %inequality -> not the same parent again.
     	), 
-        % list output
         Siblings),
     % tries to find sibling in the list
     member(Sibling, Siblings).
@@ -161,21 +175,20 @@ aunt(Aunt, Person) :-
     parent(ParentOfPerson, Person).
 
 % ----- DEFINE MORE COMPLICATED RELATIONSHIPS -----
-% TEST: descendent(archie_harrison, elisabeth) -> true
-% TEST: common_ancestor(X, george, zara_t) -> X = elisabeth, philip
-% TEST: incest_child(X) -> X = incest_child
+% TEST: descendent(charles_V_holyRomanEmperor, philip_I_kingOfCastile) -> true
+% TEST: common_ancestor(X, ferdinand_I_holyRomanEmperor, charles_V_holyRomanEmperor) -> X = philip_I_kingOfCastile, ...
+% TEST: incest_child(X) -> X = charles_II_kingOfSpain, ...
 
-% compare a similar solution on StackOverflow
-% Base case (if depth search fails)
+% Base case (if no further descendent was found)
 descendent(Descendent, Person) :-
     child(Descendent, Person).
-% Recursion (calls base case if no descendent was found, see depth search)
+% Recursion (depth search for further descendents)
 descendent(Descendent, Person) :-
     child(Descendent, Parent),
     descendent(Parent, Person).
 ancestor(Ancestor, Person) :- descendent(Person, Ancestor).
 
-% Common ancestor determination function
+% Common ancestor (single) 
 common_ancestor(CommonAncestor, Person1, Person2) :-
 	setof(
         CommonAncestor, 
@@ -189,7 +202,7 @@ common_ancestor(CommonAncestor, Person1, Person2) :-
 
 incest_child(Person) :-
     % use ^ParentN as existencial quantifier (as ParentN is not needed for the result).
-    % equivalent to: "there is at least one parent for which applies ..."
+    %  equivalent to: "there is at least one parent for which applies ..."
     setof(CommonAncestor, ParentA^ParentB^(
         % get distinct parents of a child, then see if they have common ancestors.
         parent(ParentA, Person),
@@ -200,40 +213,34 @@ incest_child(Person) :-
 
 
 % ----- DEFINE PEDIGREE COLLAPSE FUNCTIONS -----
-% coefficient of imbreeding (COI) -> number measuring how imbred an individual is. Low is genetically better.
-% --> Value of the COI between 0 (genetically good) and 1 (clone to itself, only logarithmically possible)
-% 
-% Base case: If a person does not have ancestors, the COI is 0, see SOURCES [4] below.
-% Other sources claim to create a virtual Person that takes the average of the COI of the same generation, see SOURCES [1] below.
-% Also it is claimed that the base risk is 3% for genetic similarity, see SOURCES [2] below.
-
-% USEFUL PREDICATES: 
-% find_common_ancestor(CommonAncestor, Parent1, Parent2): 
-% 	Get all common ancestors of a person's parents
-% generation_difference(CalculatedDifference, Descendant, Ancestor): 
-% 	Get generation difference between two people
-% list_sum(Sum, List): 
-% 	Sums all numeric elements of a list.
+% coefficient of imbreeding (COI) -> number, measuring how imbred an individual is. Low is genetically better.
+% --> Value of the COI between 0 (genetically good) and 1 (clone to itself, only logarithmically possible).
 
 
 % TABLING: 
 % Computation takes too long and is sometimes inconsistent --> Saving the predicate results is needed.
 % Solution: Using tabling or memoization: 
-% - Memoization: Requires manual implementation, offers more control, but can be error-prone due to own errors in the code.
-% - Tabling: Automatically managed by Prolog, easier to use, ensures consistency, nice syntactic sugar compared to memoization.
-% see here: metalevel.at/prolog/memoization 
-% see here: swi-prolog.org/pldoc/man?section=tabling-memoize
+% - Memoization: Requires manual implementation, offers more control, 
+%   but can be error-prone due to own errors in the code. see SOURCES [12]
+% - Tabling: Automatically managed by Prolog, easier to use, ensures consistency, 
+%   nice syntactic sugar compared to memoization. see SOURCES [13]
 :- table coi/2.
     
 % CALCULATING THE COI (Coefficient Of Imbreeding)
-% TEST: coi(COI, leo) -> 0.015625 (correct, see SOURCES [3], page 150)
+% TEST: coi(COI, animal_P) -> 0.125 (correct, see SOURCES [3], page 150)
 % TEST: coi(COI, leo) -> 0.015625 (correct, see SOURCES [3], page 151)
+% TEST: coi(COI, charles_II_kingOfSpain) -> 0.2412109375 
 
 % number of parents == 0
+% Base case: If a person does not have any ancestors, a constant value must be used.
+%   There are different approximations, claiming a base risk of 0% (see SOURCES) [4], 3% [2], 
+%       or a base risk equal to the average COI of the people in the same generation as the 
+%       person, determined virtually [1].
+% For testing, 0% should be taken, to compare the values with scientificly deducted values.
+% For production, 3% are a good measurement, to map reality. 
 coi(COI, Person) :-
     not(any_parent_existing(Person)),
-    COI is 0,
-    write('-------------- COI is 0 as num parents == 0'), nl.
+    COI is 0.
 
 % number of parents == 1 -> simplified [REDO]
 coi(COI, Person) :-
@@ -242,32 +249,37 @@ coi(COI, Person) :-
     COI is 0.
 
 % number of parents == 2
-coi(COI, Person) :- 
-    % Summe aller Coefs der CommonAncestors der Eltern der Person. --> Summenfunktion, appende die Coefs an die Liste	
-   	% dabei gilt pro Coef eines CommonAncestors: 0,5^(n_gens1 + n_gens2 + 1) * (...)
-    
-    write('coi/Person: '), write(Person), nl, 
-    % get common ancestors of this person as a list
+coi(COI, Person) :-     
+    % get the common ancestors of this person as a list
     common_ancestors(ListCommonAncestors, Person),
-    write('coi/ListCommonAncestors: '), write(ListCommonAncestors), nl, 
     
-    % get all CommonAncestorCOIs
+    % get all CommonAncestorCOIs by recursive calculation, also using tabling
     calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person),
-    write('coi/CommonAncestorCOIs: '), write(CommonAncestorCOIs), nl, 
     
-    % COI is the sum of all CommonAncestorCOIs
-    %list_sum(COI, CommonAncestorCOIs),
+    % the resulting person's COI is the sum of all CommonAncestorCOIs
     list_sum(COI, CommonAncestorCOIs),
-    write('coi/COI: '), write(COI), nl, nl.
+    write('Person: '), write(Person), write(' has the COI: '), write(COI), nl.
     
+
+% ----- USEFUL PREDICATES: -----
+% common_ancestors(CommonAncestor, Parent1, Parent2): 
+% 	Get all common ancestors of a person's parents
+% generation_difference(CalculatedDifference, Descendant, Ancestor): 
+% 	Get generation difference between two people
+% list_sum(Sum, List): 
+% 	Sums all numeric elements of a list.
+% calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person):
+%   calculate all COIs for the common ancestors of a person, needed for the sum function.
+% coi(COI, Person):
+%   get the COI of a Person
+
 
 % user-friendly predicate for accessing the COIs of CommonAncestors from a person
 calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person) :-
     calc_single_coi([], CommonAncestorCOIs, ListCommonAncestors, Person).
 
 % base case for accessing the CommonAncestors COIs of a person
-% This predicate is using Accumulators for faster and guranteed output at every time, see here:
-% 	stackoverflow.com/questions/19944969/prolog-accumulators-are-they-really-a-different-concept
+% This predicate is using Accumulators for faster and guranteed output, see SOURCES [14].
 calc_single_coi(Acc, Acc, [], _).
 
 % Recursive calculation of a Person's CommonAncestors' COIs.
@@ -277,42 +289,46 @@ calc_single_coi(Acc, CommonAncestorCOIs, [CurrentCommonAncestor | RemainingCommo
     generation_difference(GenDiffParent1, Parent1, CurrentCommonAncestor),
     generation_difference(GenDiffParent2, Parent2, CurrentCommonAncestor),
 
-    % calculate from CurrentCommonAncestor to probable other CommonAncestors => OwnCOI
-    % (Relationship between this CommonAncestor and those CommonAncestors of itself)
+    % calculate COI from CurrentCommonAncestor to probable other CommonAncestors => OwnCOI
+    % (Relationship between this CommonAncestor and those CommonAncestors of him-/herself)
     coi(OwnCOI, CurrentCommonAncestor),
     
-    % calculate from Person to CurrentCommonAncestor
+    % calculate COI from Person to CurrentCommonAncestor
     PersonCOI is (0.5 ** (GenDiffParent1 + GenDiffParent2 + 1)) * (1 + OwnCOI),
     
-    %debug
-    write('calc_single_coi/OwnCOI of: '), write(CurrentCommonAncestor), write(' is: '), write(OwnCOI), nl,
-    write('calc_single_coi/CurrentCOI: '), write(PersonCOI), nl,
-    
+    % recursion 
+    % - with adding the PersonCOI to the CommonAncestorCOIs
+    % - with removing the CurrentCommonAncestor from the RemainingCommonAncestors
     calc_single_coi([PersonCOI |Acc], CommonAncestorCOIs, RemainingCommonAncestors, Person).
 
 
-% find all common ancestors with find_common_ancestor that a person's parents have.
-% Predicate tries to eliminate duplicates with "member" and "Visited"
-% TEST: common_ancestors(CommonAncestors, leo) -> CommonAncestors = [harko, hassan, streif]
+% find all common ancestors that a person's parents have.
+% TEST: common_ancestors(CommonAncestors, leo) -> CommonAncestors = [harko, hassan, streif] 
+%   (correct, see SOURCES [3], page 151)
 
 common_ancestors(CommonAncestors, Person) :-
     parents_of_child(Parent1, Parent2, Person),
     % using findall to return an empty list if no CommonAncestors could have been found. -> []
-    % also returns a set of all found CommonAncestors if one was found multiple times (no duplicates).
+    %   or else a list without duplicates, see SOURCES [15]
     findall(CommonAncestor, common_ancestor(CommonAncestor, Parent1, Parent2), CommonAncestors).
 
 % Get the count of all common ancestors of a person.
-% TEST: common_ancestor_count(AncestorCount, leo) -> AncestorCount = 3
+% TEST: common_ancestor_count(AncestorCount, leo) -> AncestorCount = 3 (correct, see above)
 common_ancestor_count(Count, Person) :-
     common_ancestors(Ancestors, Person),
     list_length(Count, Ancestors).
     
-    
-
 
 % Number of generations to a specific ancestor. 
-% TEST: generation_difference(Diff, charles, elisabeth) -> DIFF = 1
-% TEST: generation_difference(Diff, george, elisabeth) -> DIFF = 3
+% TEST: generation_difference(Diff, philip_IV_kingOfSpain, philip_I_kingOfCastile) -> Diff = 4
+% TEST: generation_difference(Diff, mariana_ofAustria, philip_I_kingOfCastile) -> Diff = 5
+% TEST: generation_difference(Diff, charles_II_kingOfSpain, philip_I_kingOfCastile) -> Diff = 5
+
+% Interesting Problem: CharlesII has a Diff of 5, but his parents Diffs of 4 and 5 -> min is taken?
+%   How is this conflict being solved in the formula?
+% Solution: [REDO]
+
+% callable function to determine the number of generation difference betwenn a descendant and ancestor.
 generation_difference(CalculatedDifference, Descendant, Ancestor) :-
     setof(CalculatedDiff, 
         calc_generation_difference(CalculatedDiff, Descendant, Ancestor), 
@@ -323,37 +339,39 @@ calc_generation_difference(0, Person, Person).
 % Base case: only one generation in between -> return 1.
 calc_generation_difference(1, Descendant, Ancestor) :-
     parent(Ancestor, Descendant).
-% Recursive call: Backtracking until first generation was found (each time +1).
+% Recursive call: Backtracking until first generation was found (each time +1 deeper).
 calc_generation_difference(Difference, Descendant, Ancestor) :-
     parent(Intermediate, Descendant),
     calc_generation_difference(IntermediateDifference, Intermediate, Ancestor),
+    % performance-boost with "#=", see SOURCES [8]
     Difference #= IntermediateDifference + 1.
 
 
-
-% Sum a list of numbers using arithmetic operations.
-%  Answer based on StackOverflow here: stackoverflow.com/questions/11520621/how-do-i-get-the-sum-of-given-numbers-in-prolog
+% Sum a list of numbers using arithmetic operations, see SOURCES [16]
 list_sum(Sum, List) :-
     list_sum(List, 0, Sum).
-% Note the Accumulator Acc for optimizing the recursion calls onto the list, fastening the process.
+% using accumulator, see SOURCES [14]
 list_sum([], Acc, Acc).
 list_sum([Head|Tail], Acc, Result) :-
     NewAcc is Acc + Head,
     list_sum(Tail, NewAcc, Result).
 
-% Get the total elements of a list. [equivalent of len(list) function of python]
+
+% Get the total elements of a list. [equivalent to len(list) function in Python]
 % TEST: list_length([a,b,c,d], Length) -> Length = 4
+
 % Base case: empty list-count is 0
 list_length(0, []).
-% Recursion: Recursivly call the predicate with a length of + 1 and the elements minus the first one until base case.
+% Recursion: Recursively call the predicate with a length of length+1 
+%   and the elements without the first element until base case.
 list_length(Count, [_|Tail]) :-
     list_length(TailCount, Tail),
     Count #= (TailCount + 1).
 
 
-% DEFINE ADDITIONAL RELATIONSHIPS
+% ----- DEFINE ADDITIONAL RELATIONSHIPS -----
 % TEST: parents_of_child(Parent1, Parent2, charles_V_holyRomanEmperor) -> 
-% 		Parent1 = joanna_queenOfCastileAndAragon, Parent2 = philip_I_kingOfCastile
+% 		    Parent1 = joanna_queenOfCastileAndAragon, Parent2 = philip_I_kingOfCastile
 parents_of_child(Parent1, Parent2, Child) :-
     % Problem: returns 2x true.
     % Solution: Get the parents as a set and place them in a sorted order, 
@@ -379,28 +397,37 @@ both_parents_existing(Child) :-
 % TEST: any_parent_existing(anna_ofAustria1549) -> true
 % TEST: <a person with only one parent> -> true
 any_parent_existing(Child) :-
-	% Placeholder, as there can be any parent. "!" cut for stopping after the first parent, not returning 2 times true.
+	% Placeholder, as there can be any parent. 
+    %   "!" cut for stopping after the first parent, not returning 2 times true, see SOURCES [17]
 	parent(_, Child), !.
     
 
-    
-    
-:- debug. % redo!
 
-% SOURCES
+
+% ----- SOURCES -----
 % [1] risks of imbreeding, threshold for health and reproduction problems, understanding inbreeding of endangered species,
 %	data of generations to include for determining the COI, override missing objects with the averages COI of a generation:
 %  	instituteofcaninebiology.org/blog/coi-faqs-understanding-the-coefficient-of-inbreeding
 % [2] base risk in the population for genetic risks is 3%:
 %	Hansjakob Müller u. a.: Medizinische Genetik: Familienplanung und Genetik. In: Schweizer Medizin Forum. Basel, 2005
 %	web.archive.org/web/20180329120812/https://medicalforum.ch/de/resource/jf/journal/file/view/article/smf/de/smf.2005.05576/2005-24-398.pdf/#expand
-% [3] Tierzucht von Alfons William: https://www.utb.de/doi/book/10.36198/9783838548050
+% [3] Tierzucht von Alfons William: utb.de/doi/book/10.36198/9783838548050
 % [4] Wright, Sewall (1922), "Coefficients of Inbreeding and Relationship", The American Naturalist, vol. 56, page 333
 % 	(journals.uchicago.edu/doi/10.1086/279872)
 % [5] House of Habsburg: en.wikipedia.org/wiki/Template:Ancestors_of_Charles_II_of_Spain
 % [6] House of Habsburg: de.wikipedia.org/wiki/Ahnenverlust#/media/Datei:Carlos_segundo80.png 
 %	as there are many different pedigree charts of the House of Habsburg, the most accessible is being taken here (from wikipedia).
-
+% [7] nature.com/articles/hdy201325 INTERESTING!
+% [8] Prolog "#=" Predicate (from library clpfd) instead of is: swi-prolog.org/pldoc/man?predicate=%23%3D/2
+% [9] Prolog "=" vs is: stackoverflow.com/questions/16027449/what-is-the-difference-between-is-and
+% [10] Prolog setof/3 explanation: alsprolog.com/docs/ref/setof.html
+% [11] Prolog existencial quantifier "^": cs.union.edu/~striegnk/learn-prolog-now/html/node98.html
+% [12] Prolog Memoization: metalevel.at/prolog/memoization
+% [13] Prolog Tabling: swi-prolog.org/pldoc/man?section=tabling-memoize
+% [14] Prolog Accumulators: stackoverflow.com/questions/19944969/prolog-accumulators-are-they-really-a-different-concept
+% [15] Prolog findall/3: swi-prolog.org/pldoc/man?predicate=findall%2f3
+% [16] Prolog sum predicate: stackoverflow.com/questions/11520621/how-do-i-get-the-sum-of-given-numbers-in-prolog
+% [17] Prolog cut: stackoverflow.com/questions/14541164/knowing-when-to-use-cut-in-prolog
 
 /** <examples>
 ?- generation_difference(Diff, Desc, elisabeth)
