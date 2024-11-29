@@ -224,7 +224,7 @@ incest_child(Person) :-
 %   but can be error-prone due to own errors in the code. see SOURCES [12]
 % - Tabling: Automatically managed by Prolog, easier to use, ensures consistency, 
 %   nice syntactic sugar compared to memoization. see SOURCES [13]
-:- table coi/2.
+:- table coi/3.
     
 % CALCULATING THE COI (Coefficient Of Imbreeding)
 % TEST: coi(COI, animal_P) -> 0.125 (correct, see SOURCES [3], page 150)
@@ -238,27 +238,34 @@ incest_child(Person) :-
 %       person, determined virtually [1].
 % For testing, 0% should be taken, to compare the values with scientificly deducted values.
 % For production, 3% are a good measurement, to map reality. 
-coi(COI, Person) :-
+coi(COI, Person, BaseRiskRate) :-
     not(any_parent_existing(Person)),
-    COI is 0.
+    COI is BaseRiskRate.
 
-% number of parents == 1 -> simplified [REDO]
-coi(COI, Person) :-
+% number of parents == 1
+% This case is being ignored by Wright (SOURCES [4]). 
+% --> Deeper look into some formula-applying papers. [redo later?]
+coi(COI, Person, BaseRiskRate) :-
     any_parent_existing(Person),
     not(both_parents_existing(Person)),
-    COI is 0.
+    COI is BaseRiskRate.
 
 % number of parents == 2
-coi(COI, Person) :-     
+coi(COI, Person, BaseRiskRate) :-     
     % get the common ancestors of this person as a list
     common_ancestors(ListCommonAncestors, Person),
     
     % get all CommonAncestorCOIs by recursive calculation, also using tabling
-    calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person),
+    calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person, BaseRiskRate),
     
     % the resulting person's COI is the sum of all CommonAncestorCOIs
-    list_sum(COI, CommonAncestorCOIs),
-    write('Person: '), write(Person), write(' has the COI: '), write(COI), nl.
+    list_sum(COI, CommonAncestorCOIs). %revert to TempCOI in case of BaseRiskRate application
+    
+    % if the COI is smaller than the BaseRiskRate, apply the BaseRiskRate as a value, see SOURCES [18].
+    % (TempCOI < BaseRiskRate -> COI = BaseRiskRate ; COI = TempCOI).
+    
+    % debug:
+    % write('Person: '), write(Person), write(' has the COI: '), write(COI), nl.
     
 
 % ----- USEFUL PREDICATES: -----
@@ -268,22 +275,22 @@ coi(COI, Person) :-
 % 	Get generation difference between two people
 % list_sum(Sum, List): 
 % 	Sums all numeric elements of a list.
-% calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person):
+% calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person, BaseRiskRate):
 %   calculate all COIs for the common ancestors of a person, needed for the sum function.
-% coi(COI, Person):
-%   get the COI of a Person
+% coi(COI, Person, BaseRiskRate):
+%   get the COI of a Person with a given BaseRiskRate in the population.
 
 
 % user-friendly predicate for accessing the COIs of CommonAncestors from a person
-calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person) :-
-    calc_single_coi([], CommonAncestorCOIs, ListCommonAncestors, Person).
+calc_multiple_cois(CommonAncestorCOIs, ListCommonAncestors, Person, BaseRiskRate) :-
+    calc_single_coi([], CommonAncestorCOIs, ListCommonAncestors, Person, BaseRiskRate).
 
 % base case for accessing the CommonAncestors COIs of a person
 % This predicate is using Accumulators for faster and guranteed output, see SOURCES [14].
-calc_single_coi(Acc, Acc, [], _).
+calc_single_coi(Acc, Acc, [], _, _).
 
 % Recursive calculation of a Person's CommonAncestors' COIs.
-calc_single_coi(Acc, CommonAncestorCOIs, [CurrentCommonAncestor | RemainingCommonAncestors], Person) :-    
+calc_single_coi(Acc, CommonAncestorCOIs, [CurrentCommonAncestor | RemainingCommonAncestors], Person, BaseRiskRate) :-    
     % get parents and generation differences
     parents_of_child(Parent1, Parent2, Person),
     generation_difference(GenDiffParent1, Parent1, CurrentCommonAncestor),
@@ -291,7 +298,7 @@ calc_single_coi(Acc, CommonAncestorCOIs, [CurrentCommonAncestor | RemainingCommo
 
     % calculate COI from CurrentCommonAncestor to probable other CommonAncestors => OwnCOI
     % (Relationship between this CommonAncestor and those CommonAncestors of him-/herself)
-    coi(OwnCOI, CurrentCommonAncestor),
+    coi(OwnCOI, CurrentCommonAncestor, BaseRiskRate),
     
     % calculate COI from Person to CurrentCommonAncestor
     PersonCOI is (0.5 ** (GenDiffParent1 + GenDiffParent2 + 1)) * (1 + OwnCOI),
@@ -299,7 +306,7 @@ calc_single_coi(Acc, CommonAncestorCOIs, [CurrentCommonAncestor | RemainingCommo
     % recursion 
     % - with adding the PersonCOI to the CommonAncestorCOIs
     % - with removing the CurrentCommonAncestor from the RemainingCommonAncestors
-    calc_single_coi([PersonCOI |Acc], CommonAncestorCOIs, RemainingCommonAncestors, Person).
+    calc_single_coi([PersonCOI |Acc], CommonAncestorCOIs, RemainingCommonAncestors, Person, BaseRiskRate).
 
 
 % find all common ancestors that a person's parents have.
@@ -324,9 +331,10 @@ common_ancestor_count(Count, Person) :-
 % TEST: generation_difference(Diff, mariana_ofAustria, philip_I_kingOfCastile) -> Diff = 5
 % TEST: generation_difference(Diff, charles_II_kingOfSpain, philip_I_kingOfCastile) -> Diff = 5
 
-% Interesting Problem: CharlesII has a Diff of 5, but his parents Diffs of 4 and 5 -> min is taken?
+% Interesting Problem: CharlesII has a Diff of 5, but his parents Diffs of 4 and 5 
+%   -> min of 4+1 and 5+1 is taken?
 %   How is this conflict being solved in the formula?
-% Solution: [REDO]
+% Solution: not known yet, have to look deeper into formula-application papers. [redo later?]
 
 % callable function to determine the number of generation difference betwenn a descendant and ancestor.
 generation_difference(CalculatedDifference, Descendant, Ancestor) :-
@@ -428,6 +436,7 @@ any_parent_existing(Child) :-
 % [15] Prolog findall/3: swi-prolog.org/pldoc/man?predicate=findall%2f3
 % [16] Prolog sum predicate: stackoverflow.com/questions/11520621/how-do-i-get-the-sum-of-given-numbers-in-prolog
 % [17] Prolog cut: stackoverflow.com/questions/14541164/knowing-when-to-use-cut-in-prolog
+% [18] Prolog if-statement: learnxbyexample.com/prolog/if-else/
 
 /** <examples>
 ?- generation_difference(Diff, Desc, elisabeth)
