@@ -443,8 +443,8 @@ cois_to_json(BaseRiskRate, JSON) :-
 % Output predicate for the JSON data, using writes
 write_jsoned_cois(JSON) :-
     write('{'),
-    write('"baseriskrate": '), write(JSON.baseriskrate), write(', '),
-    write('"inbreeding": ['), write_single_jsoned_coi(JSON.data), write(']'),
+    write('"baseriskrate": '), write(JSON.baseriskrate), write(', '), nl,
+    write('"inbreeding": ['), nl, write_single_jsoned_coi(JSON.data), write(']'), 
     write('}').
 
 % Helper predicate to write the json-data with coi and person.
@@ -460,6 +460,7 @@ write_single_jsoned_coi([CurrentElement|Rest]) :-
     % if-condition, see SOURCES [18]
     % if Rest (Tail) is not empty, then write a comma for the next element. else pass.
     ( Rest \= [] -> write(', ') ; true ),
+    nl,
     % recursive call onto the list with all elements except the newly written one -> without CurrentElement.
     write_single_jsoned_coi(Rest).
 
