@@ -16,6 +16,20 @@
 % For scientific purposes, the COI is normally being used.
 % The formula works as following:
 
+% ----- USAGE - coi -----
+% ?- coi(<COI>, <Person>, <BaseRiskRate>).
+% <COI> should not be set with a value.
+% <Person> could be any Person in the knowledge base like charles_II_kingOfSpain or a variable.
+% <BaseRiskRate> with a float value in [0, 1].
+% Recommended BaseRiskRate: 0, 0.03, 0.05.
+% --> coi(COI, charles_II_kingOfSpain, 0.03).
+
+% ----- USAGE - cois to json -----
+% ?- cois_to_json(<BaseRiskRate>, <JSON>), write_jsoned_cois(<JSON>).
+% give <BaseRiskRate> a value, like 0.03
+% let <JSON> be the variable JSON
+% --> writes JSONed COIs into the console.
+
 % ----- FORMULA -----
 % FP = SUM[ 0.5 ^ (N1 + N2 + 1) * (1 + FCA)]
 % FP: Coefficient of Imbreeding of a Person P.
@@ -410,6 +424,45 @@ any_parent_existing(Child) :-
 	parent(_, Child), !.
     
 
+% ----- JSON OUTPUT -----
+:- use_module(library(http/json)).
+
+% Generate JSON in Prolog format:
+% TEST: generate_json(0.03, Json) -> Json = _{baseriskrate:0.03, data:[
+%		_{coi:0.04781250000000001, person:philip_IV_kingOfSpain}, 
+%		_{coi:0.04781250000000001, person:maria_anna_ofSpain}, <more entries ...> ]}
+
+cois_to_json(BaseRiskRate, JSON) :- 
+    % dicts ( _{} ) with the properties "person" and "coi", see SOURCES [19]
+    % finds COIs of all People and saves them in to a List
+    findall(_{person: Person, coi: COI}, coi(COI, Person, BaseRiskRate), OutputList), 
+    
+    % reformat to JSON, but still in Prolog-like structure!
+    JSON = _{baseriskrate: BaseRiskRate, data: OutputList}.
+
+% Output predicate for the JSON data, using writes
+write_jsoned_cois(JSON) :-
+    write('{'),
+    write('"baseriskrate": '), write(JSON.baseriskrate), write(', '),
+    write('"inbreeding": ['), write_single_jsoned_coi(JSON.data), write(']'),
+    write('}').
+
+% Helper predicate to write the json-data with coi and person.
+% base case: empty list or if Rest is empty
+write_single_jsoned_coi([]).
+% recursion: CurrentElement (Head) and Rest (Tail)
+write_single_jsoned_coi([CurrentElement|Rest]) :-
+    % write the CurrentElement (Head)
+    write('{'),
+    write('"person": "'), write(CurrentElement.person), write('", '),
+    write('"coi": '), write(CurrentElement.coi),
+    write('}'),
+    % if-condition, see SOURCES [18]
+    % if Rest (Tail) is not empty, then write a comma for the next element. else pass.
+    ( Rest \= [] -> write(', ') ; true ),
+    % recursive call onto the list with all elements except the newly written one -> without CurrentElement.
+    write_single_jsoned_coi(Rest).
+
 
 
 % ----- SOURCES -----
@@ -437,6 +490,7 @@ any_parent_existing(Child) :-
 % [16] Prolog sum predicate: stackoverflow.com/questions/11520621/how-do-i-get-the-sum-of-given-numbers-in-prolog
 % [17] Prolog cut: stackoverflow.com/questions/14541164/knowing-when-to-use-cut-in-prolog
 % [18] Prolog if-statement: learnxbyexample.com/prolog/if-else/
+% [19] Prolog dicts: swi-prolog.org/pldoc/man?section=dicts
 
 /** <examples>
 ?- generation_difference(Diff, Desc, elisabeth)
